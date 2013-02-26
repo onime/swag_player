@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from time import sleep
 import threading
 from  colorama import Fore
 import re
@@ -83,6 +84,67 @@ def sync_video_file_and_sub(info):
         
     return new_path
 
+def run_cmd(info):
+
+     if len(info) == 2:
+         path_last_seen = path_scans+format_name(info[0],".") + "/"+str(info[1])
+         if os.path.exists(path_last_seen):
+             print("Reading",info[0],info[1])
+             os.system("ristretto "+path_last_seen)
+         else:
+             print(path_last_seen,"doesn't exists")
+             exit(0)
+     else:
+         path_last_seen = path_of_episode(info[0],info[1],info[2])
+         if os.path.exists(path_last_seen):
+             print("Playing",format_name(info[0],".")+"."+format_SXXEXX(info[1],info[2]))
+             os.system(cmd_mplayer + path_last_seen)
+         else:
+             print(path_last_seen,"doesn't exists")
+             exit(0)    
+
+class threadSendMplayer(threading.Thread):
+    def __init__(self,info):       
+        self.info_ep = info
+        threading.Thread.__init__(self)
+    def run(self):
+         thread_exec = threading.Thread(target = run_cmd,args=(self.info_ep,))
+         thread_exec.start()
+    
+         sleep(1)
+         
+         send_inform("get_time_length",send_fifo)
+         
+         while thread_exec.is_alive():
+             send_inform("get_time_pos",send_fifo)
+             sleep(0.5)
+
+class threadReadMplayer(threading.Thread):
+    def __init__(self):
+        self.time_total = 0
+        self.time_cur = 0
+        threading.Thread.__init__(self)
+    def run(self):
+        match = None
+        
+        while match == None:
+            read_info = read_inform(read_fifo)
+            match = re.search("ANS_LENGTH=(.*)",read_info,re.IGNORECASE)
+    
+        self.time_total = int(float(match.group(1)))
+    
+        while re.search("Exit",read_info)== None:
+        
+            read_info = read_inform(read_fifo)
+            match = re.search("ANS_TIME_POSITION=(.*)",read_info,re.IGNORECASE)
+            if match != None:
+                self.time_cur = int(float(match.group(1)))
+    
+    def get_time_total(self):
+        return self.time_total
+    def get_time_cur(self):
+        return self.time_cur
+
 def list_ready():
     manga_last_seen = infos_last("MANGA",".","VU")
     manga_last_dl = infos_last("MANGA",".","DL")
@@ -101,26 +163,6 @@ def list_ready():
             if ss[0] == sd[0] and  (sd[1] > ss[1] or (sd[1] == ss[1] and sd[2] > ss[2])):
                 sync_video_file_and_sub([ss[0],ss[1],ss[2]+1])
 
-
-def run_cmd(info):
-
-     if len(info) == 2:
-         path_last_seen = path_scans+format_name(info[0],".") + "/"+str(info[1])
-         if os.path.exists(path_last_seen):
-             print("Reading",info[0],info[1])
-             os.system("ristretto "+path_last_seen)
-         else:
-             print(path_last_seen,"doesn't exists")
-             exit(0)
-     else:
-         path_last_seen = path_of_episode(info[0],info[1],info[2])
-         if os.path.exists(path_last_seen):
-             print("Playing",format_name(info[0],".")+"."+format_SXXEXX(info[1],info[2]))
-             os.system(cmd_mplayer + path_last_seen)
-         else:
-             print(path_last_seen,"doesn't exists")
-             exit(0)
-
 def play_last(args):
 
     if len(args) >= 1:
@@ -137,17 +179,34 @@ def play_next(args):
         else:
             info = infos_of_name(args[0],"VU")
             info_dl = infos_of_name(args[0],"DL")
-    
-            run_cmd([info[0],info[1],info[2]+1])
-            print("fuck")
-            #incr_last(info[0],"--VU")
 
-fifo_mplayer = "/home/yosholo/.config/utils/fifo_mplayer"
-cmd_mplayer = "mplayer --slave -input file="+fifo_mplayer+" --really-quiet 2> /dev/null "
+            thread_read = threadReadMplayer()
+            thread_read.start()
+            thread_send = threadSendMplayer(info)
+            thread_send.start()
+            thread_send.join()
+            
+            time_total = thread_read.get_time_total()
+            time_final = thread_read.get_time_cur()
+            ratio = time_final/time_total * 100
+            
+            if ratio>  90:
+                 #incr_last(info[0],"--VU")
+                print("incremente",ratio)
+            else:
+                #on sauvegarde
+                print("on incremente pas",ratio)
+           
+
+send_fifo = "/home/yosholo/.config/utils/send_mplayer"
+read_fifo = "/home/yosholo/.config/utils/read_mplayer"
+
+cmd_mplayer = "mplayer --slave -input file="+send_fifo+" --quiet &> "+read_fifo +"  2> /dev/null "
 ok = "[ "+Fore.GREEN + "OK"+Fore.RESET+" ]"
 partial = "[ "+Fore.YELLOW + "PARTIAL" + Fore.RESET+" ]"
 nosub = "[ "+Fore.RED + "NO SUB" + Fore.RESET+" ]"
 
+time_total = 0
 args = sys.argv[1:]
 if len(args) == 0:
     print("Nothing to do")
