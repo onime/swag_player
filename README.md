@@ -12,3 +12,10 @@ and because it's a fucking player he can replay the file at the point
 where it ends before and ask to play from the begining or not
 and when the bd for the resume will be set he could print the summary
 of the preview
+
+list commands
+
+play_next
+play_last
+play [--random] Shows[/Season[/num]]
+list_ready
