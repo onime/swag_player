@@ -95,10 +95,11 @@ def run_cmd(info):
              print(path_last_seen,"doesn't exists")
              exit(0)
      else:
-         path_last_seen = path_of_episode(info[0],info[1],info[2])
+         path_last_seen = sync_video_file_and_sub(info)
          if os.path.exists(path_last_seen):
              print("Playing",format_name(info[0],".")+"."+format_SXXEXX(info[1],info[2]))
              os.system(cmd_mplayer + path_last_seen)
+             
          else:
              print(path_last_seen,"doesn't exists")
              exit(0)    
@@ -118,6 +119,8 @@ class threadSendMplayer(threading.Thread):
          while thread_exec.is_alive():
              send_inform("get_time_pos",send_fifo)
              sleep(0.5)
+    def get_path():
+        return self.path
 
 class threadReadMplayer(threading.Thread):
     def __init__(self):
@@ -144,6 +147,22 @@ class threadReadMplayer(threading.Thread):
         return self.time_total
     def get_time_cur(self):
         return self.time_cur
+
+def save_next_not_finish(info,time_cur):
+    with open(state_played,"w") as next_played:
+        next_played.write(info[0]+":"+info[1]+":"+info[2]+":"+str(time_cur))
+
+def restore_next_not_finish():
+    print("restore")
+
+def play_video(info):
+    thread_read = threadReadMplayer()
+    thread_read.start()
+    thread_send = threadSendMplayer(info)
+    thread_send.start()
+    thread_send.join()
+            
+    return (thread_read.get_time_total(),thread_read.get_time_cur())
 
 def list_ready():
     manga_last_seen = infos_last("MANGA",".","VU")
@@ -179,15 +198,8 @@ def play_next(args):
         else:
             info = infos_of_name(args[0],"VU")
             info_dl = infos_of_name(args[0],"DL")
-
-            thread_read = threadReadMplayer()
-            thread_read.start()
-            thread_send = threadSendMplayer(info)
-            thread_send.start()
-            thread_send.join()
             
-            time_total = thread_read.get_time_total()
-            time_final = thread_read.get_time_cur()
+            (time_total,time_final) = play_video(info)           
             ratio = time_final/time_total * 100
             
             if ratio>  90:
@@ -195,11 +207,12 @@ def play_next(args):
                 print("incremente",ratio)
             else:
                 #on sauvegarde
+                save_next_not_finish(
                 print("on incremente pas",ratio)
            
-
-send_fifo = "/home/yosholo/.config/utils/send_mplayer"
-read_fifo = "/home/yosholo/.config/utils/read_mplayer"
+state_played = "/home/yosholo.config/utils/swgp/state_played"
+send_fifo = "/home/yosholo/.config/utils/swgp/send_mplayer"
+read_fifo = "/home/yosholo/.config/utils/swgp/read_mplayer"
 
 cmd_mplayer = "mplayer --slave -input file="+send_fifo+" --quiet &> "+read_fifo +"  2> /dev/null "
 ok = "[ "+Fore.GREEN + "OK"+Fore.RESET+" ]"
@@ -208,12 +221,13 @@ nosub = "[ "+Fore.RED + "NO SUB" + Fore.RESET+" ]"
 
 time_total = 0
 args = sys.argv[1:]
+
 if len(args) == 0:
     print("Nothing to do")
     exit(0)
 
 config = configparser.ConfigParser()
-config.read("/home/yosholo/.config/utils/swgp.conf")
+config.read("/home/yosholo/.config/utils/swgp/swgp.conf")
 
 path_scans = config.get("PATHS","scans")
 path_shows = config["PATHS"]["shows"]
