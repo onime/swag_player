@@ -149,7 +149,6 @@ if len(args) == 0:
     exit(0)
 
 
-
 if args[0] == "list_ready":
     list_ready()
 elif args[0] == "play_last":

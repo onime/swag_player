@@ -70,8 +70,6 @@ state_played = "/home/yosholo/.config/utils/swgp/state_played"
 send_fifo = "/home/yosholo/.config/utils/swgp/send_mplayer"
 read_fifo = "/home/yosholo/.config/utils/swgp/read_mplayer"
 
-
-
 args = sys.argv
 if len(args) != 4:
     print("fuck")
