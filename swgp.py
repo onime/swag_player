@@ -78,8 +78,6 @@ def run_cmd(info,arg = "last"):
         else:
             return [2,1]
 
-
-
 def save_next_not_finish(info,time_cur):
     with open(state_played,"w") as next_played:
         next_played.write(info[0]+":"+str(info[1])+":"+str(info[2])+":"+str(time_cur))
@@ -127,7 +125,7 @@ def play_next(args):
             ratio = time_final/time_total * 100
             
             if ratio>  90:
-                 #incr_last(info[0],"--VU")
+                incr_last(info[0],"VU")
                 print("incremente",ratio)
             else:
                 #on sauvegarde
