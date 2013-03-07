@@ -8,6 +8,7 @@ from easylast import *
 import configparser
 import sys
 import os
+import subprocess
 from  shutil import move
 
 def change_ext(name_file,new_ext):
@@ -69,14 +70,13 @@ def run_cmd(info,arg = "last"):
             print(path_last_seen,"doesn't exists")
             exit(0)
     else:
-        path_last_seen = path_of_episode(info[0],info[1],info[2])
-        if os.path.exists(path_last_seen):
-            print("Playing",format_name(info[0],".")+"."+format_SXXEXX(info[1],info[2]))
-            os.system(cmd_mplayer + path_last_seen + suiteCmd)
-            return [2,2]
+        ret = subprocess.check_output(["/usr/local/bin/mplayer_wrap",str(info[0]),str(info[1]),str(info[2])])
+        
+        match = re.search("\n([0-9]+):([0-9]+)\n",ret.decode("utf-8"))
+        if match != None:
+            return [int(match.group(1)),int(match.group(2))]
         else:
-            print(path_last_seen,"doesn't exists")
-            exit(0)    
+            return [2,1]
 
 
 
@@ -136,7 +136,7 @@ def play_next(args):
 
           
 
-
+state_played = "/home/yosholo/.config/utils/swgp/state_played"
 ok = "[ "+Fore.GREEN + "OK"+Fore.RESET+" ]"
 partial = "[ "+Fore.YELLOW + "PARTIAL" + Fore.RESET+" ]"
 nosub = "[ "+Fore.RED + "NO SUB" + Fore.RESET+" ]"

@@ -20,7 +20,13 @@ class threadSendMplayer(threading.Thread):
         thread_exec.start()        
        
         info_r = restore_next_not_finish()
+        print(info_r[:-1])
+        print(self.info_ep)
+        
+        while try_open_fifo(send_fifo) == False:
+            sleep(0.2)
         if info_r[:-1] == self.info_ep:
+            print("threadSendMplayer restore",str(info_r[-1]))
             send_inform("seek "+str(info_r[-1]),send_fifo)
                            
         while thread_exec.is_alive():
@@ -64,7 +70,7 @@ def exec_mplayer(path):
 def restore_next_not_finish():
     with open(state_played,"r") as next_played:
         info = next_played.readline().split(":")
-        return [info[0],int(info[1]),int(info[2]),int(info[3])]
+        return [info[0],info[1],info[2],int(info[3])]
 
 state_played = "/home/yosholo/.config/utils/swgp/state_played"
 send_fifo = "/home/yosholo/.config/utils/swgp/send_mplayer"
@@ -86,6 +92,6 @@ thread_send = threadSendMplayer(path_file,info)
 thread_send.start()
 thread_send.join()
 
-print(thread_read.get_time_total(),thread_read.get_time_cur())
+print(str(thread_read.get_time_total())+":"+str(thread_read.get_time_cur()))
 
 
