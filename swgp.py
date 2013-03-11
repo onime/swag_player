@@ -149,43 +149,81 @@ def cmp_info(info_a,info_b):
             return None
 
 def increment_or_save(info,time_total,time_final):
-    ratio = time_final/time_total * 100
-            
-    if ratio>  90:
-        incr_last(info[0],"VU")
-        print("incremente",ratio)
-    else:
-        #on sauvegarde
-        save_next_not_finish(info,time_final)
-        print("on incremente pas",ratio)
-
-def play_list(args):
-    swgp_config = read_config(path_config)
-    order_shows = swgp_config["ORDER"]["show"]
-    tab_order = order_shows.split(",")
-  
     
-    for name_manga in tab_order:
-        info_manga = infos_of_name(name_manga,"VU")
-        info_dl = infos_of_name(name_manga,"DL")
+    if len(info) != 2:
         
-        if info_manga != None:
-            while cmp_info(info_manga,info_dl) < 1:
-                info_manga = incr_ep(info_manga)        
-                print(info_manga)
-                increment_or_save(info_manga,1,1)
-                
+        ratio = time_final/time_total * 100
+        name_ep = format_name(info[0],".")+"."+format_SXXEXX(info[1],info[2])
+        
+        if ratio>  90:
+            incr_last(info[0],"VU")
+            print(name_ep,"seen")
+        else:
+            save_next_not_finish(info,time_final)
+            print(name_ep,"save at",str(int(ratio))+"%")
+    else:
+        incr_last(info[0],"VU")
 
+def play_fix(tab_order):
+
+     for name in tab_order:
+         info = infos_of_name(name,"VU")
+         info_dl = infos_of_name(name,"DL")
+         
+         if info != None:
+             info = incr_ep(info)         
+         
+             while cmp_info(info,info_dl) < 1:
+                 print(info)
+                 #play_show()
+                 info = incr_ep(info)
+                 increment_or_save(info,1,1)              
+
+def play_circle(tab_order):
+    
+    still_ep_to_play = True
+    while still_ep_to_play:
+        still_ep_to_play = False
+        
+        for name in tab_order:
+            info = infos_of_name(name,"VU")
+            info_dl = infos_of_name(name,"DL")
+
+            if info != None:
+                info = incr_ep(info)
+                if cmp_info(info,info_dl) < 1:
+                    print(info)
+                    #play_show()
+                    increment_or_save(info,1,1)
+                    still_ep_to_play = True
+                
+def play_list(type_media,args):
+    swgp_config = read_config(path_config)
+    order_shows = swgp_config["ORDER"][type_media]
+
+    tab_order = order_shows.split(",")
+    still_ep_to_play = True
+    
+    if len(args) > 0:
+        if  args[0] == "--fix":
+            play_fix(tab_order)
+    else:
+        play_circle(tab_order)
+   
+       
 #--all play all episode till the last ready
 #--fix will play all media before change i.e play all naruto then one.piece
 def play_next(args):
     
     if len(args) >= 1:
         if args[0] == "--shows":
-            play_list(args)
+
             print("play next shows ready")
+            play_list("shows",args[1:])
+
         elif args[0] == "--scans":
             print("play next scans ready")
+            play_list("scans",args[1:])
         else:
             info = infos_of_name(args[0],"VU")
             
