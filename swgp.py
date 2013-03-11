@@ -15,6 +15,9 @@ def change_ext(name_file,new_ext):
     name_split = name_file.split(".")
     return ".".join(name_split[:len(name_split)-1]) +"."+new_ext
 
+def incr_ep(info):
+    info[-1] +=1
+    return info
 
 def sync_video_file_and_sub(info):
     
@@ -23,7 +26,7 @@ def sync_video_file_and_sub(info):
    
     new_name = format_name(info[0],".")+"."+format_SXXEXX(info[1],info[2])
     new_path = path_ep_srt[0]
-
+    
     if(path_ep_srt[1] != ""):
     
         if change_ext(path_ep_srt[0],"srt") != path_ep_srt[1]:
@@ -105,33 +108,90 @@ def play_last(args):
 
     if len(args) >= 1:
         run_cmd(infos_of_name(args[0],"VU"),"last")
-                
+
+def play_show(info):
+       
+    sync_video_file_and_sub(info)       
+    return run_cmd(info)         
+
+def cmp_info(info_a,info_b):
+
+    if len(info_b) != len(info_b):
+        return None
+
+    info_a[1] = int(info_a[1])
+    info_b[1] = int(info_b[1])
+
+    if len(info_a) == 2:
+        
+        if info_a[1] > info_b[1]:
+            return 1
+        elif info_a[1] < info_b[1]:
+            return -1
+        else:
+            return 0
+    elif len(info_a) == 3:
+        info_a[2] = int(info_a[2])
+        info_b[2] = int(info_b[2])
+
+        if info_a[1] == info_b[1] and info_a[2] > info_b[2]:
+            return 1
+        elif info_a[1] == info_b[1] and info_a[2] < info_b[2]:
+            return -1
+        elif info_a[1] > info_b[1]:
+            return 1
+        elif info_a[1] < info_b[1]:
+            return -1
+        else:
+            return 0
+
+    else:
+            return None
+
+def increment_or_save(info,time_total,time_final):
+    ratio = time_final/time_total * 100
+            
+    if ratio>  90:
+        incr_last(info[0],"VU")
+        print("incremente",ratio)
+    else:
+        #on sauvegarde
+        save_next_not_finish(info,time_final)
+        print("on incremente pas",ratio)
+
+def play_list(args):
+    swgp_config = read_config(path_config)
+    order_shows = swgp_config["ORDER"]["show"]
+    tab_order = order_shows.split(",")
+  
     
+    for name_manga in tab_order:
+        info_manga = infos_of_name(name_manga,"VU")
+        info_dl = infos_of_name(name_manga,"DL")
+        
+        if info_manga != None:
+            while cmp_info(info_manga,info_dl) < 1:
+                info_manga = incr_ep(info_manga)        
+                print(info_manga)
+                increment_or_save(info_manga,1,1)
+                
+
+#--all play all episode till the last ready
+#--fix will play all media before change i.e play all naruto then one.piece
 def play_next(args):
     
     if len(args) >= 1:
         if args[0] == "--shows":
+            play_list(args)
             print("play next shows ready")
         elif args[0] == "--scans":
             print("play next scans ready")
         else:
             info = infos_of_name(args[0],"VU")
-            info = [info[0],info[1],info[2]+1]
-            info_dl = infos_of_name(args[0],"DL")
             
-            sync_video_file_and_sub(info)
+            (time_total,time_final) = play_show(incr_ep(info))
             
-            (time_total,time_final) = run_cmd(info)         
-            ratio = time_final/time_total * 100
-            
-            if ratio>  90:
-                incr_last(info[0],"VU")
-                print("incremente",ratio)
-            else:
-                #on sauvegarde
-                save_next_not_finish(info,time_final)
-                print("on incremente pas",ratio)
-
+            increment_or_save(info,time_total,time_final)
           
 
 state_played = "/home/yosholo/.config/utils/swgp/state_played"
